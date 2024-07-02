@@ -37,6 +37,36 @@ pub fn build(b: *std.Build) void {
         .optimize = optimize,
     });
 
+    // Find and include curl header
+    if (builtin.os.tag != .linux) {
+        @compileError("curl.zig doesn't support non-linux platform yet");
+    }
+
+    {
+        const curl_pkg_path = std.process.getEnvVarOwned(b.allocator, "CURL_PKG_PATH");
+
+        if (curl_pkg_path) |path| {
+            defer b.allocator.free(path);
+
+            exe.addIncludePath(.{ .cwd_relative = b.fmt("{s}/include", .{path}) });
+            exe.addLibraryPath(.{ .cwd_relative = b.fmt("{s}/lib", .{path}) });
+            exe.linkSystemLibrary("curl");
+            std.log.info("[curl.zig] using CURL_PKG_PATH: {s}", .{path});
+        } else |_| {
+            std.log.info("[curl.zig] CURL_PKG_PATH not found, searching $CURL_INC_PATH", .{});
+            const curl_inc_path = std.process.getEnvVarOwned(b.allocator, "CURL_INC_PATH") catch {
+                std.log.err("[curl.zig] None of the $CURL_PKG_PATH or $CURL_INC_PATH was set", .{});
+                std.process.exit(1);
+            };
+            defer b.allocator.free(curl_inc_path);
+
+            std.log.info("[curl.zig] using CURL_INC_PATH: {s}", .{curl_inc_path});
+            exe.addIncludePath(.{ .cwd_relative = curl_inc_path });
+        }
+    }
+
+    exe.linkLibC();
+
     // This declares intent for the executable to be installed into the
     // standard location when the user invokes the "install" step (the default
     // step when running `zig build`).
