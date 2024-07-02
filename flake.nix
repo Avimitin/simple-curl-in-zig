@@ -23,6 +23,9 @@
         legacyPackages = pkgs;
 
         devShell = with pkgs; mkShell {
+          env = {
+            CURL_PKG_PATH = toString curl.dev;
+          };
           nativeBuildInputs = [
             zig
             zls
